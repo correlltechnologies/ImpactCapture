@@ -22,7 +22,7 @@ def toggle_pause():
 def read_displacement_vs_load_data(file_path):
     """Read displacement and load data from an Excel file."""
     try:
-        df = pd.read_excel(file_path, sheet_name=0)  # Use the first sheet
+        df = pd.read_excel(file_path, sheet_name=0)  # Read the first sheet
         print("Excel Columns:", df.columns)  # Debugging step
 
         displacement_col = df.columns[3] if len(df.columns) > 3 else df.columns[0]
@@ -38,10 +38,10 @@ def read_displacement_vs_load_data(file_path):
 
 
 def show_graph(displacement_data, load_data):
-    """Display the initial graph of load vs displacement."""
+    """Display the initial graph of load vs displacement with a tooltip."""
     plt.ion()
     fig, ax = plt.subplots()
-    ax.plot(displacement_data, load_data, label='Load vs Displacement')
+    line, = ax.plot(displacement_data, load_data, label='Load vs Displacement')
 
     # Create the red displacement line
     displacement_line, = ax.plot([displacement_data[0], displacement_data[0]],
@@ -53,6 +53,35 @@ def show_graph(displacement_data, load_data):
     ax.set_ylabel('Load (N)')
     ax.legend()
     ax.grid(True)
+
+    # Tooltip
+    annot = ax.annotate("", xy=(0, 0), xytext=(20, 20),
+                        textcoords="offset points",
+                        bbox=dict(boxstyle="round", fc="w"),
+                        arrowprops=dict(arrowstyle="->"))
+    annot.set_visible(False)
+
+    def update_annot(ind):
+        x, y = line.get_data()
+        annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
+        text = f"{x[ind['ind'][0]]:.2f}, {y[ind['ind'][0]]:.2f}"
+        annot.set_text(text)
+        annot.get_bbox_patch().set_alpha(0.4)
+
+    def hover(event):
+        vis = annot.get_visible()
+        if event.inaxes == ax:
+            cont, ind = line.contains(event)
+            if cont:
+                update_annot(ind)
+                annot.set_visible(True)
+                fig.canvas.draw_idle()
+            else:
+                if vis:
+                    annot.set_visible(False)
+                    fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("motion_notify_event", hover)
 
     plt.show(block=False)
     return fig, ax, displacement_line
