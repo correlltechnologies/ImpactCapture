@@ -38,7 +38,7 @@ def read_displacement_vs_load_data(file_path):
 
 
 def show_graph(displacement_data, load_data):
-    """Display the initial graph of load vs displacement with a tooltip."""
+    """Display the initial graph of load vs displacement with current values displayed."""
     plt.ion()
     fig, ax = plt.subplots()
     line, = ax.plot(displacement_data, load_data, label='Load vs Displacement')
@@ -48,49 +48,27 @@ def show_graph(displacement_data, load_data):
                                  [min(load_data), max(load_data)], 'r--',
                                  label='Current Displacement')
 
+    # Text to display current values
+    current_values_text = ax.text(0.05, 0.95, "", transform=ax.transAxes, fontsize=12,
+                                  verticalalignment='top')
+
     ax.set_title('Load vs Displacement')
     ax.set_xlabel('Displacement (mm)')
     ax.set_ylabel('Load (N)')
     ax.legend()
     ax.grid(True)
 
-    # Tooltip
-    annot = ax.annotate("", xy=(0, 0), xytext=(20, 20),
-                        textcoords="offset points",
-                        bbox=dict(boxstyle="round", fc="w"),
-                        arrowprops=dict(arrowstyle="->"))
-    annot.set_visible(False)
-
-    def update_annot(ind):
-        x, y = line.get_data()
-        annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        text = f"{x[ind['ind'][0]]:.2f}, {y[ind['ind'][0]]:.2f}"
-        annot.set_text(text)
-        annot.get_bbox_patch().set_alpha(0.4)
-
-    def hover(event):
-        vis = annot.get_visible()
-        if event.inaxes == ax:
-            cont, ind = line.contains(event)
-            if cont:
-                update_annot(ind)
-                annot.set_visible(True)
-                fig.canvas.draw_idle()
-            else:
-                if vis:
-                    annot.set_visible(False)
-                    fig.canvas.draw_idle()
-
-    fig.canvas.mpl_connect("motion_notify_event", hover)
-
     plt.show(block=False)
-    return fig, ax, displacement_line
+    return fig, ax, displacement_line, current_values_text
 
 
-def update_graph(displacement_line, current_displacement, fig, ax, load_data):
+def update_graph(displacement_line, current_displacement, fig, ax, load_data, current_values_text):
     """Update the graph with the current displacement."""
     displacement_line.set_xdata([current_displacement, current_displacement])  # Move the red line
     displacement_line.set_ydata([min(load_data), max(load_data)])  # Keep it spanning the full height
+
+    # Update the current values text
+    current_values_text.set_text(f"Current values: ({current_displacement:.2f}, {load_data})")
 
     ax.relim()
     ax.autoscale_view()
@@ -100,7 +78,7 @@ def update_graph(displacement_line, current_displacement, fig, ax, load_data):
     plt.pause(0.001)
 
 
-def on_trackbar(val, cap, displacement_line, displacement_data, load_data, fig, ax):
+def on_trackbar(val, cap, displacement_line, displacement_data, load_data, fig, ax, current_values_text):
     """Handle trackbar movement to update the video frame and graph."""
     if not cap or not cap.isOpened():
         print("Warning: Video capture is not open!")
@@ -114,7 +92,7 @@ def on_trackbar(val, cap, displacement_line, displacement_data, load_data, fig, 
         cv2.imshow('Slow Motion Video', frame_resized)
 
     if 0 <= val < len(displacement_data):
-        update_graph(displacement_line, displacement_data[val], fig, ax, load_data)  # Now passes load_data
+        update_graph(displacement_line, displacement_data[val], fig, ax, load_data[val], current_values_text)  # Now passes load_data
 
 
 def play_video_with_displacement_graph(video_path, displacement_data, load_data):
@@ -125,14 +103,14 @@ def play_video_with_displacement_graph(video_path, displacement_data, load_data)
         print("Error: Cannot open video")
         return
 
-    fig, ax, displacement_line = show_graph(displacement_data, load_data)
+    fig, ax, displacement_line, current_values_text = show_graph(displacement_data, load_data)
     max_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     cv2.namedWindow('Slow Motion Video', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('Slow Motion Video', 800, 600)
 
     def trackbar_callback(val):
-        on_trackbar(val, cap, displacement_line, displacement_data, load_data, fig, ax)  # Added load_data
+        on_trackbar(val, cap, displacement_line, displacement_data, load_data, fig, ax, current_values_text)  # Added load_data
 
     cv2.createTrackbar('Frame', 'Slow Motion Video', 0, max_frames - 1, trackbar_callback)
 
@@ -157,7 +135,7 @@ def play_video_with_displacement_graph(video_path, displacement_data, load_data)
 
                     # Update red line in sync
                     if 0 <= current_frame < len(displacement_data):
-                        update_graph(displacement_line, displacement_data[current_frame], fig, ax, load_data)
+                        update_graph(displacement_line, displacement_data[current_frame], fig, ax, load_data[current_frame], current_values_text)
 
                     cv2.setTrackbarPos('Frame', 'Slow Motion Video', current_frame)
 
