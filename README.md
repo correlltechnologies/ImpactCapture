@@ -10,7 +10,7 @@ A python program that plots imapact data alongside a slow-motion video of the im
 sudo apt install python3 python3-venv python3-pip
 ```
 * Create and activate a virtual environment
-```(bash)
+```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
